@@ -1,0 +1,116 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- 地图区域 -->
+  <map
+    id="meetupMap"
+    class="map"
+    latitude="{{latitude}}"
+    longitude="{{longitude}}"
+    scale="{{scale}}"
+    markers="{{markers}}"
+    polyline="{{polylines}}"
+    show-location
+    bindtap="onMapTap"
+    bindmarkertap="onMarkerTap">
+  </map>
+  
+  <!-- 地址输入区域 -->
+  <view class="input-area">
+    <view class="input-section">
+      <view class="input-label">我的位置</view>
+      <view class="input-group">
+        <input class="input-field" placeholder="输入你的地址" value="{{inputAddress}}" bindinput="inputUserAddress" />
+        <button class="location-btn" bindtap="useCurrentLocation">
+          <view class="location-icon"></view>
+        </button>
+        <button class="search-btn" bindtap="searchUserAddress">搜索</button>
+      </view>
+    </view>
+    
+    <view class="input-section">
+      <view class="input-label">TA的位置</view>
+      <view class="input-group">
+        <input class="input-field" placeholder="输入对方地址" value="{{partnerAddress}}" bindinput="inputPartnerAddress" />
+        <button class="search-btn" bindtap="searchPartnerAddress">搜索</button>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 场所类型选择区域 -->
+  <view class="venue-type-area">
+    <view class="section-title">选择约会场所类型</view>
+    <view class="venue-type-list">
+      <view 
+        wx:for="{{venueTypes}}" 
+        wx:key="id" 
+        class="venue-type-item {{selectedVenueType === item.id ? 'selected' : ''}}" 
+        bindtap="selectVenueType"
+        data-id="{{item.id}}">
+        <view class="venue-type-icon {{item.icon}}"></view>
+        <view class="venue-type-name">{{item.name}}</view>
+      </view>
+    </view>
+    
+    <button class="find-btn btn-primary" bindtap="findVenues">寻找约会场所</button>
+  </view>
+  
+  <!-- 推荐场所列表 -->
+  <view class="venue-list {{showVenueList ? 'show' : ''}}">
+    <view class="venue-list-header">
+      <view class="list-title">推荐场所</view>
+      <view class="toggle-btn" bindtap="toggleVenueList">
+        <view class="toggle-icon {{showVenueList ? 'up' : 'down'}}"></view>
+      </view>
+    </view>
+    
+    <view class="venue-items">
+      <view wx:if="{{recommendedVenues.length === 0}}" class="no-venues">
+        暂无推荐场所，请选择场所类型并点击寻找约会场所
+      </view>
+      <view 
+        wx:for="{{recommendedVenues}}" 
+        wx:key="id" 
+        class="venue-item card" 
+        bindtap="viewVenueDetail"
+        data-index="{{index}}">
+        <view class="venue-title">{{item.title}}</view>
+        <view class="venue-address">{{item.address}}</view>
+        <view class="venue-distance">距离中点: {{item.distance}}米</view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 加载中 -->
+  <view class="loading-mask" wx:if="{{loading}}">
+    <view class="loading-content">
+      <view class="loading-spinner"></view>
+      <view class="loading-text">加载中...</view>
+    </view>
+  </view>
+
+  <!-- 搜索区域 -->
+  <view class="search-area">
+    <view class="search-input-group">
+      <view class="search-icon"></view>
+      <input class="search-input" placeholder="搜索地点" value="{{searchValue}}" bindinput="onSearchInput" bindconfirm="bindconfirm"/>
+      <view class="search-btn" bindtap="onSearch">搜索</view>
+    </view>
+
+    <!-- 搜索历史 -->
+    <view class="search-history" wx:if="{{showHistory && searchHistory.length > 0}}">
+      <view class="history-header">
+        <text class="history-title">搜索历史</text>
+        <view class="clear-history" bindtap="clearSearchHistory">
+          <view class="clear-icon"></view>
+          <text>清除历史</text>
+        </view>
+      </view>
+      <view class="history-list">
+        <view class="history-item" wx:for="{{searchHistory}}" wx:key="*this" bindtap="onHistoryTap" data-value="{{item}}">
+          <view class="history-item-icon"></view>
+          <text class="history-item-text">{{item}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view> 

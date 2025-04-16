@@ -1,0 +1,98 @@
+<!--pages/venueDetail/venueDetail.wxml-->
+<view class="container">
+  <!-- 顶部图片轮播 -->
+  <swiper class="swiper" indicator-dots="{{true}}" autoplay="{{true}}" interval="{{3000}}" duration="{{500}}" bindchange="swiperChange">
+    <swiper-item wx:for="{{imgUrls}}" wx:key="*this">
+      <image src="{{item}}" class="swiper-image" mode="aspectFill"></image>
+    </swiper-item>
+  </swiper>
+  <view class="swiper-counter">{{currentImgIndex + 1}}/{{imgUrls.length}}</view>
+  
+  <!-- 场所信息 -->
+  <view class="venue-info card">
+    <view class="venue-header">
+      <view class="venue-title">{{venue.title}}</view>
+      <view class="venue-favorite" bindtap="toggleFavorite">
+        <view class="favorite-icon {{venue.isFavorite ? 'active' : ''}}"></view>
+      </view>
+    </view>
+    
+    <view class="venue-category">{{venue.category}}</view>
+    
+    <view class="venue-rating" wx:if="{{venue.rating}}">
+      <view class="rating-stars" style="width: {{venue.rating * 20}}%"></view>
+      <text class="rating-value">{{venue.rating}}</text>
+      <text class="rating-count" wx:if="{{venue.review_num}}">({{venue.review_num}}条点评)</text>
+    </view>
+    
+    <view class="venue-item">
+      <view class="venue-icon address-icon"></view>
+      <view class="venue-text">{{venue.address}}</view>
+    </view>
+    
+    <view class="venue-item" wx:if="{{venue.tel}}">
+      <view class="venue-icon phone-icon"></view>
+      <view class="venue-text">{{venue.tel}}</view>
+      <view class="venue-action">
+        <button class="action-btn" bindtap="makePhoneCall">拨打</button>
+      </view>
+    </view>
+    
+    <view class="venue-item" wx:if="{{venue.opening_hours}}">
+      <view class="venue-icon time-icon"></view>
+      <view class="venue-text">{{venue.opening_hours}}</view>
+    </view>
+    
+    <view class="venue-item" wx:if="{{venue.website}}">
+      <view class="venue-icon web-icon"></view>
+      <view class="venue-text venue-website">{{venue.website}}</view>
+    </view>
+  </view>
+  
+  <!-- 距离信息 -->
+  <view class="distance-info card">
+    <view class="distance-title">距离信息</view>
+    
+    <view class="distance-item">
+      <view class="distance-icon you-icon"></view>
+      <view class="distance-label">您到场所:</view>
+      <view class="distance-value">{{distance.userToVenue}}米</view>
+      <view class="duration-value">约{{duration.userToVenue / 60 | Int}}分钟</view>
+    </view>
+    
+    <view class="distance-item">
+      <view class="distance-icon partner-icon"></view>
+      <view class="distance-label">对方到场所:</view>
+      <view class="distance-value">{{distance.partnerToVenue}}米</view>
+      <view class="duration-value">约{{duration.partnerToVenue / 60 | Int}}分钟</view>
+    </view>
+  </view>
+  
+  <!-- 地图区域 -->
+  <view class="map-section card">
+    <view class="map-title">位置与路线</view>
+    <map
+      id="detailMap"
+      class="detail-map"
+      latitude="{{latitude}}"
+      longitude="{{longitude}}"
+      markers="{{markers}}"
+      polyline="{{polylines}}"
+      show-location>
+    </map>
+    <button class="map-btn btn-primary" bindtap="openMapNavigation">打开导航</button>
+  </view>
+  
+  <!-- 底部操作区 -->
+  <view class="bottom-actions">
+    <button class="share-btn" open-type="share">
+      <view class="action-icon share-icon"></view>
+      <view class="action-text">分享</view>
+    </button>
+    
+    <button class="nav-btn btn-primary" bindtap="openMapNavigation">
+      <view class="action-icon nav-icon"></view>
+      <view class="action-text">导航</view>
+    </button>
+  </view>
+</view> 

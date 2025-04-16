@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 320">
+  <rect width="640" height="320" fill="#FF6B81" />
+  <rect x="20" y="20" width="600" height="280" fill="white" rx="20" ry="20" />
+  <text x="320" y="100" font-family="Arial" font-size="40" text-anchor="middle" fill="#FF6B81">邂逅导航</text>
+  <text x="320" y="160" font-family="Arial" font-size="30" text-anchor="middle" fill="#666">找到最合适的约会地点</text>
+  <path d="M170 220 Q 320 150 470 220" stroke="#FF6B81" stroke-width="8" fill="none" stroke-linecap="round" />
+  <circle cx="170" cy="220" r="20" fill="#5DADE2" />
+  <circle cx="470" cy="220" r="20" fill="#F1948A" />
+  <circle cx="320" cy="200" r="25" fill="#FF6B81" />
+</svg> 

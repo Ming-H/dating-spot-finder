@@ -1,0 +1,418 @@
+/* pages/index/index.wxss */
+
+/* 地图区域 */
+.map {
+  width: 100%;
+  height: calc(100vh - 120rpx);
+}
+
+/* 输入区域 */
+.input-area {
+  width: 100%;
+  background-color: #fff;
+  padding: 20rpx;
+  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 10;
+}
+
+.input-section {
+  margin-bottom: 20rpx;
+}
+
+.input-label {
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 10rpx;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+}
+
+.input-field {
+  flex: 1;
+  height: 80rpx;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 8rpx;
+  padding: 0 20rpx;
+  margin-right: 10rpx;
+  font-size: 28rpx;
+}
+
+.search-btn {
+  width: 120rpx;
+  height: 80rpx;
+  background-color: #FF6B81;
+  color: white;
+  font-size: 28rpx;
+  line-height: 80rpx;
+  text-align: center;
+  border-radius: 8rpx;
+  padding: 0;
+}
+
+.location-btn {
+  width: 80rpx;
+  height: 80rpx;
+  background-color: #f0f0f0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8rpx;
+  margin-right: 10rpx;
+  padding: 0;
+}
+
+.location-icon {
+  width: 36rpx;
+  height: 36rpx;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23666"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+/* 场所类型区域 */
+.venue-type-area {
+  width: 100%;
+  background-color: #fff;
+  padding: 20rpx;
+  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.1);
+  margin-top: 2rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+.venue-type-list {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 20rpx;
+}
+
+.venue-type-item {
+  width: 20%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx 0;
+  transition: all 0.2s;
+}
+
+.venue-type-item.selected {
+  background-color: rgba(255, 107, 129, 0.1);
+  border-radius: 8rpx;
+}
+
+.venue-type-icon {
+  width: 80rpx;
+  height: 80rpx;
+  margin-bottom: 10rpx;
+  transition: all 0.2s;
+}
+
+/* 场所类型图标 */
+.icon-restaurant {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FF6B81"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.icon-cafe {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FF6B81"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.9 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.icon-movie {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FF6B81"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.icon-park {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FF6B81"><path d="M13.127 14.56l1.43-1.43 6.44 6.443L19.57 21zm4.293-5.73l2.86-2.86c-3.95-3.95-10.35-3.96-14.3-.02 3.93-1.3 8.31-.25 11.44 2.88zM5.95 5.98c-3.94 3.95-3.93 10.35.02 14.3l2.86-2.86C5.7 14.29 4.65 9.91 5.95 5.98zm.02-.02l-.01.01c-.38 3.01 1.17 6.88 4.3 10.02l5.73-5.73c-3.13-3.13-7.01-4.68-10.02-4.3z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.icon-shopping {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FF6B81"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.icon-bar {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FF6B81"><path d="M21 5V3H3v2l8 9v5H6v2h12v-2h-5v-5l8-9zM7.43 7L5.66 5h12.69l-1.78 2H7.43z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.venue-type-name {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.find-btn {
+  width: 100%;
+  height: 90rpx;
+  line-height: 90rpx;
+  font-size: 32rpx;
+  margin-top: 20rpx;
+}
+
+/* 推荐场所列表 */
+.venue-list {
+  width: 100%;
+  background-color: #fff;
+  box-shadow: 0 -4rpx 8rpx rgba(0, 0, 0, 0.1);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.venue-list.show {
+  max-height: 70vh;
+}
+
+.venue-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx;
+  border-bottom: 1rpx solid #e0e0e0;
+}
+
+.list-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333;
+}
+
+.toggle-btn {
+  padding: 10rpx;
+}
+
+.toggle-icon {
+  width: 40rpx;
+  height: 40rpx;
+  transition: transform 0.3s;
+}
+
+.toggle-icon.up {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23666"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.toggle-icon.down {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23666"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
+.venue-items {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 20rpx;
+}
+
+.no-venues {
+  padding: 40rpx 0;
+  color: #999;
+  text-align: center;
+  font-size: 28rpx;
+}
+
+.venue-item {
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.venue-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 10rpx;
+}
+
+.venue-address {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 10rpx;
+}
+
+.venue-distance {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 加载中 */
+.loading-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.loading-content {
+  background-color: #fff;
+  border-radius: 12rpx;
+  padding: 30rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.loading-spinner {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  border: 6rpx solid #f3f3f3;
+  border-top: 6rpx solid #FF6B81;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20rpx;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #666;
+}
+
+/* 搜索区域样式 */
+.search-area {
+  position: absolute;
+  top: 20rpx;
+  left: 30rpx;
+  right: 30rpx;
+  z-index: 100;
+  background: #fff;
+  border-radius: 12rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.1);
+}
+
+.search-input-group {
+  display: flex;
+  align-items: center;
+  padding: 20rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.search-icon {
+  width: 32rpx;
+  height: 32rpx;
+  margin-right: 16rpx;
+  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTUuNSAxNEgxNC43MUwxNC40MyAxMy43M0MxNS40MSAxMi41OSAxNiAxMS4xMSAxNiA5LjVDMTYgNS45MSAxMy4wOSAzIDkuNSAzQzUuOTEgMyAzIDUuOTEgMyA5LjVDMyAxMy4wOSA1LjkxIDE2IDkuNSAxNkMxMS4xMSAxNiAxMi41OSAxNS40MSAxMy43MyAxNC40M0wxNDE0LjcxVjE1LjVMMTkgMTkuNDlMMjAuNDkgMThMMTYuNSAxMy41VjE0Wk05LjUgMTRDNy4wMSAxNCA1IDExLjk5IDUgOS41QzUgNy4wMSA3LjAxIDUgOS41IDVDMTEuOTkgNSAxNCA3LjAxIDE0IDkuNUMxNCAxMS45OSAxMS45OSAxNCA5LjUgMTRaIiBmaWxsPSIjOTk5Ii8+PC9zdmc+') no-repeat center/contain;
+}
+
+.search-input {
+  flex: 1;
+  height: 72rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.search-btn {
+  padding: 12rpx 24rpx;
+  font-size: 28rpx;
+  color: #007AFF;
+  background: #F5F5F5;
+  border-radius: 8rpx;
+}
+
+/* 搜索历史样式 */
+.search-history {
+  background: #fff;
+  border-radius: 0 0 12rpx 12rpx;
+  overflow: hidden;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.history-title {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.clear-history {
+  display: flex;
+  align-items: center;
+}
+
+.clear-icon {
+  width: 28rpx;
+  height: 28rpx;
+  margin-right: 8rpx;
+  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNiAxOUMgNiAyMC4xIDYuOSAyMSA4IDIxSDEyQzEzLjEgMjEgMTQgMjAuMSAxNCAxOVY3SDZWMTlaTTE5IDRIMTUuNUwxNC41IDNIOTVMOCAzSDQuNUwzLjUgNEgxVjZIMTlWNFoiIGZpbGw9IiM5OTkiLz48L3N2Zz4=') no-repeat center/contain;
+}
+
+.clear-history text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.history-list {
+  padding: 0 24rpx;
+  max-height: 400rpx;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-item-icon {
+  width: 28rpx;
+  height: 28rpx;
+  margin-right: 16rpx;
+  background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTMgM0MxMy41IDMgMTQgMy41IDE0IDRWMTFIMjFDMjEuNSAxMSAyMiAxMS41IDIyIDEyQzIyIDEyLjUgMjEuNSAxMyAyMSAxM0gxNFYyMEMxNCAyMC41IDEzLjUgMjEgMTMgMjFDMTIuNSAyMSAxMiAyMC41IDEyIDIwVjEzSDVDNC41IDEzIDQgMTIuNSA0IDEyQzQgMTEuNSA0LjUgMTEgNSAxMUgxMlY0QzEyIDMuNSAxMi41IDMgMTMgM1oiIGZpbGw9IiM5OTkiLz48L3N2Zz4=') no-repeat center/contain;
+}
+
+.history-item-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+} 

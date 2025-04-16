@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#E8F8F5" />
+  <path d="M0 200 Q 400 50 800 200 L 800 450 L 0 450 Z" fill="#1ABC9C" />
+  <circle cx="400" cy="150" r="80" fill="#F4D03F" />
+  <rect x="300" y="250" width="200" height="150" fill="#E8F8F5" />
+  <text x="400" y="400" font-family="Arial" font-size="40" text-anchor="middle" fill="#1ABC9C">场所示例图 3</text>
+</svg> 
