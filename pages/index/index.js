@@ -1,8 +1,11 @@
 // pages/index/index.js
 const app = getApp();
-const QQMapWX = require('../../utils/qqmap-wx-jssdk.min.js');
+// 更换为高德地图SDK
+const AMapWX = require('../../utils/amap-wx.js');
 
-let qqmapsdk;
+let amapWx;
+let apiCallTimestamp = 0;
+const API_CALL_INTERVAL = 5000; // 限制API调用间隔至少5秒
 
 Page({
     data: {
@@ -38,17 +41,18 @@ Page({
         loading: false,
         searchHistory: [],
         showHistory: false,
-        searchValue: ''
+        searchValue: '',
+        devForceRefresh: false
     },
 
     onLoad() {
         try {
-            // 初始化地图SDK
-            qqmapsdk = new QQMapWX({
-                key: 'YA3BZ-7BB64-YB6UP-KKDDU-4GAW2-JSFGY' // 腾讯地图 API 密钥
+            // 初始化高德地图SDK
+            amapWx = new AMapWX({
+                key: '您的高德地图API密钥' // 请替换为您申请的高德地图API密钥
             });
 
-            console.log('地图SDK初始化完成，API密钥:', qqmapsdk.key);
+            console.log('地图SDK初始化完成，API密钥:', amapWx.key);
         } catch (e) {
             console.error('地图SDK初始化失败:', e);
             wx.showModal({
@@ -60,7 +64,7 @@ Page({
         }
 
         // 检查SDK是否正确加载
-        if (!qqmapsdk || typeof qqmapsdk.search !== 'function') {
+        if (!amapWx || typeof amapWx.getPoiAround !== 'function') {
             console.error('地图SDK实例异常，缺少必要方法');
             wx.showModal({
                 title: '加载异常',
@@ -428,7 +432,7 @@ Page({
         app.globalData.selectedVenueType = typeId;
     },
 
-    // 寻找约会场所
+    // 寻找约会场所 - 使用高德地图SDK
     findVenues() {
         if (!this.data.userLocation || !this.data.partnerLocation) {
             wx.showToast({
@@ -464,41 +468,53 @@ Page({
             };
 
             const keyword = typeKeywords[this.data.selectedVenueType];
+            const cacheKey = `venues_${keyword}_${centerLat.toFixed(3)}_${centerLng.toFixed(3)}`;
+
+            // 检查本地缓存
+            const cachedResults = wx.getStorageSync(cacheKey);
+            const now = Date.now();
+
+            // 如果有缓存且缓存未过期（24小时内）且不是开发模式强制刷新
+            if (cachedResults && now - cachedResults.timestamp < 24 * 60 * 60 * 1000 && !this.data.devForceRefresh) {
+                console.log('使用缓存的场所数据');
+                this.processAmapVenueResults(cachedResults.data);
+                return;
+            }
+
+            // 检查API调用频率限制
+            if (now - apiCallTimestamp < API_CALL_INTERVAL) {
+                console.log('API调用过于频繁，使用备用数据');
+                this.useBackupVenueData();
+                wx.showToast({
+                    title: 'API调用过于频繁，已使用备选数据',
+                    icon: 'none',
+                    duration: 2000
+                });
+                return;
+            }
+
+            // 更新最后API调用时间
+            apiCallTimestamp = now;
 
             console.log('开始搜索场所:', {
                 keyword,
-                location: `${centerLat},${centerLng}`,
-                apiKey: qqmapsdk.key
+                location: `${centerLat},${centerLng}`
             });
 
-            // 调用腾讯地图周边搜索API
-            qqmapsdk.search({
-                keyword: keyword,
-                location: `${centerLat},${centerLng}`,
-                page_size: 10,
+            // 调用高德地图周边搜索API
+            amapWx.getPoiAround({
+                querykeywords: keyword,
+                location: `${centerLng},${centerLat}`, // 注意：高德地图是经度在前，纬度在后
                 success: (res) => {
                     console.log('搜索结果成功:', res);
-                    if (res && res.data && Array.isArray(res.data)) {
-                        const venues = res.data.map(item => ({
-                            id: item.id,
-                            title: item.title,
-                            address: item.address,
-                            tel: item.tel,
-                            category: item.category,
-                            type: this.data.selectedVenueType,
-                            distance: item._distance,
-                            location: item.location
-                        }));
-
-                        app.globalData.recommendedVenues = venues;
-
-                        this.setData({
-                            recommendedVenues: venues,
-                            showVenueList: true,
-                            loading: false
+                    if (res && res.markers && Array.isArray(res.markers)) {
+                        // 保存到缓存
+                        wx.setStorageSync(cacheKey, {
+                            timestamp: now,
+                            data: res.markers
                         });
 
-                        this.updateMarkers();
+                        this.processAmapVenueResults(res.markers);
                     } else {
                         console.error('搜索结果格式异常:', res);
                         this.handleSearchError('搜索结果异常');
@@ -523,6 +539,33 @@ Page({
         }
     },
 
+    // 添加新方法：处理高德地图场所结果数据
+    processAmapVenueResults(venueData) {
+        const venues = venueData.map((item, index) => ({
+            id: index.toString(),
+            title: item.name,
+            address: item.address || '',
+            tel: item.tel || '',
+            category: item.type || this.data.selectedVenueType,
+            type: this.data.selectedVenueType,
+            distance: item.distance || 0,
+            location: {
+                lat: parseFloat(item.latitude),
+                lng: parseFloat(item.longitude)
+            }
+        }));
+
+        app.globalData.recommendedVenues = venues;
+
+        this.setData({
+            recommendedVenues: venues,
+            showVenueList: true,
+            loading: false
+        });
+
+        this.updateMarkers();
+    },
+
     // 新增：处理搜索错误的统一方法
     handleSearchError(error) {
         let errorMsg = '搜索场所失败';
@@ -535,13 +578,13 @@ Page({
             // 处理常见错误码
             if (error.status === 121) {
                 errorMsg = 'API密钥无效或未授权';
-                suggestedAction = '请检查腾讯地图开发者平台中API密钥的状态，确认已授权该小程序AppID';
+                suggestedAction = '请检查高德地图开发者平台中API密钥的状态，确认已授权该小程序AppID';
             } else if (error.status === 348) {
                 errorMsg = '请求超出配额限制';
                 suggestedAction = '当日API调用次数已达上限，请明天再试或升级服务';
             } else if (error.status === 311) {
                 errorMsg = '请求的服务接口或域名未获授权';
-                suggestedAction = '请在微信小程序管理后台添加腾讯地图API域名到request合法域名列表';
+                suggestedAction = '请在微信小程序管理后台添加高德地图API域名到request合法域名列表';
             }
         }
 
@@ -640,7 +683,7 @@ Page({
         });
     },
 
-    // 绘制路线
+    // 绘制路线 - 使用高德地图SDK
     drawRouteLine() {
         const from = {
             latitude: this.data.userLocation.latitude,
@@ -652,35 +695,66 @@ Page({
             longitude: this.data.partnerLocation.longitude
         };
 
-        qqmapsdk.direction({
-            mode: 'driving',
-            from: `${from.latitude},${from.longitude}`,
-            to: `${to.latitude},${to.longitude}`,
+        amapWx.getDrivingRoute({
+            origin: `${from.longitude},${from.latitude}`, // 注意：高德地图是经度在前，纬度在后
+            destination: `${to.longitude},${to.latitude}`,
             success: (res) => {
-                const route = res.result.routes[0];
-                const coors = route.polyline;
+                console.log('路线规划成功:', res);
+                // 处理路线数据
+                if (res.paths && res.paths.length > 0) {
+                    const path = res.paths[0];
 
-                const pl = [];
-                for (let i = 2; i < coors.length; i++) {
-                    coors[i] = coors[i - 2] + coors[i] / 1000000;
+                    // 提取路线点数据
+                    let points = [];
+                    if (path.steps) {
+                        path.steps.forEach(step => {
+                            if (step.polyline) {
+                                const polylinePoints = step.polyline.split(';');
+                                polylinePoints.forEach(point => {
+                                    const [lng, lat] = point.split(',');
+                                    points.push({
+                                        longitude: parseFloat(lng),
+                                        latitude: parseFloat(lat)
+                                    });
+                                });
+                            }
+                        });
+                    }
+
+                    // 设置路线数据
+                    this.setData({
+                        polylines: [{
+                            points: points,
+                            color: '#FF6B81',
+                            width: 4,
+                            dottedLine: false
+                        }]
+                    });
                 }
-
-                for (let i = 0; i < coors.length; i += 2) {
-                    pl.push({ latitude: coors[i], longitude: coors[i + 1] });
-                }
-
-                this.setData({
-                    polylines: [{
-                        points: pl,
-                        color: '#FF6B81',
-                        width: 4,
-                        dottedLine: false
-                    }]
-                });
             },
             fail: (error) => {
-                console.error(error);
+                console.error('路线规划失败:', error);
+                // 生成简单直线路径作为备选
+                this.generateFallbackRoute(from, to);
             }
+        });
+    },
+
+    // 添加生成备选路线方法
+    generateFallbackRoute(from, to) {
+        console.log('生成备用路线...');
+        const points = [
+            { latitude: from.latitude, longitude: from.longitude },
+            { latitude: to.latitude, longitude: to.longitude }
+        ];
+
+        this.setData({
+            polylines: [{
+                points: points,
+                color: '#FF6B81',
+                width: 4,
+                dottedLine: true
+            }]
         });
     },
 
@@ -882,5 +956,99 @@ Page({
     // 添加一个新的方法，供搜索框输入后回车时调用
     bindconfirm() {
         this.onSearch();
+    },
+
+    // 使用高德地图SDK搜索位置
+    searchLocation: function (e) {
+        let that = this;
+        let keyword = e.detail.value;
+
+        if (!keyword.trim()) {
+            wx.showToast({
+                title: '请输入搜索关键词',
+                icon: 'none'
+            });
+            return;
+        }
+
+        wx.showLoading({
+            title: '正在搜索...',
+        });
+
+        // 保存搜索历史
+        this.saveSearchHistory(keyword);
+
+        // 使用高德地图SDK搜索POI
+        amapWx.getInputtips({
+            keywords: keyword,
+            location: '',
+            success: function (data) {
+                wx.hideLoading();
+                if (data && data.tips) {
+                    let markers = [];
+                    let searchResults = [];
+
+                    data.tips.forEach((item, index) => {
+                        if (item.location) {
+                            let location = item.location.split(',');
+                            let marker = {
+                                id: index,
+                                latitude: location[1],
+                                longitude: location[0],
+                                title: item.name,
+                                callout: {
+                                    content: item.name,
+                                    color: '#000000',
+                                    fontSize: 12,
+                                    borderRadius: 3,
+                                    bgColor: '#ffffff',
+                                    padding: 5,
+                                    display: 'BYCLICK'
+                                },
+                                iconPath: '../../images/marker-user.svg',
+                                width: 30,
+                                height: 30
+                            };
+                            markers.push(marker);
+
+                            searchResults.push({
+                                id: index,
+                                name: item.name,
+                                address: item.address || item.district,
+                                latitude: location[1],
+                                longitude: location[0]
+                            });
+                        }
+                    });
+
+                    that.setData({
+                        markers: markers,
+                        searchResults: searchResults
+                    });
+
+                    // 如果有结果，移动地图到第一个结果位置
+                    if (markers.length > 0) {
+                        that.setData({
+                            latitude: markers[0].latitude,
+                            longitude: markers[0].longitude
+                        });
+                    }
+                } else {
+                    wx.showToast({
+                        title: '未找到相关位置',
+                        icon: 'none'
+                    });
+                }
+            },
+            fail: function (error) {
+                wx.hideLoading();
+                wx.showModal({
+                    title: '搜索失败',
+                    content: '请检查网络连接或API密钥配置',
+                    showCancel: false
+                });
+                console.error(error);
+            }
+        });
     }
 }); 
