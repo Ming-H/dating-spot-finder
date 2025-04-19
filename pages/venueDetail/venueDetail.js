@@ -36,35 +36,48 @@ Page({
     },
 
     onLoad(options) {
-        // 初始化腾讯地图SDK
-        qqmapsdk = new QQMapWX({
-            key: this.data.key
-        });
+        try {
+            // 初始化腾讯地图SDK - 使用正确的 key
+            qqmapsdk = new QQMapWX({
+                key: 'YA3BZ-7BB64-YB6UP-KKDDU-4GAW2-JSFGY' // 使用与 index.js 相同的密钥
+            });
 
-        // 获取场所数据
-        const venue = app.globalData.selectedVenue;
+            // 获取场所数据
+            const venue = app.globalData.selectedVenue;
+            const userLocation = app.globalData.userLocation;
+            const partnerLocation = app.globalData.partnerLocation;
 
-        if (!venue) {
+            if (!venue) {
+                wx.showToast({
+                    title: '未找到场所信息',
+                    icon: 'none'
+                });
+                setTimeout(() => {
+                    wx.navigateBack();
+                }, 1500);
+                return;
+            }
+
+            this.setData({
+                venue: venue,
+                latitude: venue.location.lat,
+                longitude: venue.location.lng,
+                userLocation: userLocation,
+                partnerLocation: partnerLocation
+            });
+
+            // 确保我们有距离信息
+            this.calculateAndSetDistances();
+
+            // 更新地图标记
+            this.updateAllMarkers();
+        } catch (e) {
+            console.error('场所详情页面加载失败:', e);
             wx.showToast({
-                title: '未找到场所信息',
+                title: '加载失败',
                 icon: 'none'
             });
-            setTimeout(() => {
-                wx.navigateBack();
-            }, 1500);
-            return;
         }
-
-        this.setData({
-            venue: venue,
-            latitude: venue.location.lat,
-            longitude: venue.location.lng,
-            userLocation: app.globalData.userLocation,
-            partnerLocation: app.globalData.partnerLocation
-        });
-
-        // 更新地图标记
-        this.updateAllMarkers();
     },
 
     onReady: function () {
@@ -186,6 +199,50 @@ Page({
         });
     },
 
+    // 新方法：计算并设置距离信息
+    calculateAndSetDistances: function () {
+        const venue = this.data.venue;
+        const userLocation = this.data.userLocation;
+        const partnerLocation = this.data.partnerLocation;
+
+        if (!venue || !venue.location || !userLocation || !partnerLocation) {
+            return;
+        }
+
+        // 优先使用场所中已经计算好的距离（如果有的话）
+        let userToVenueDist = venue.userDistance || venue.distance || 0;
+        let partnerToVenueDist = venue.partnerDistance || 0;
+
+        if (!userToVenueDist || userToVenueDist === 0) {
+            userToVenueDist = this.calculateDistance(
+                userLocation.latitude, userLocation.longitude,
+                venue.location.lat, venue.location.lng
+            );
+        }
+
+        if (!partnerToVenueDist || partnerToVenueDist === 0) {
+            partnerToVenueDist = this.calculateDistance(
+                partnerLocation.latitude, partnerLocation.longitude,
+                venue.location.lat, venue.location.lng
+            );
+        }
+
+        // 计算步行时间（平均速度为平均步行速度约为4km/h，约67米/分钟）
+        const userToVenueTime = Math.ceil(userToVenueDist / 67) * 60; // 转为秒
+        const partnerToVenueTime = Math.ceil(partnerToVenueDist / 67) * 60;
+
+        this.setData({
+            distance: {
+                userToVenue: Math.round(userToVenueDist),
+                partnerToVenue: Math.round(partnerToVenueDist)
+            },
+            duration: {
+                userToVenue: userToVenueTime,
+                partnerToVenue: partnerToVenueTime
+            }
+        });
+    },
+
     // 计算距离和时间
     calculateDistanceAndDuration() {
         if (this.data.userLocation) {
@@ -299,6 +356,7 @@ Page({
     drawRouteLine: function () {
         const venue = this.data.venue;
         const userLocation = this.data.userLocation;
+        const partnerLocation = this.data.partnerLocation;
 
         if (!venue || !venue.location || !userLocation) {
             console.log('缺少路线规划所需的位置信息');
@@ -308,69 +366,129 @@ Page({
         // 显示加载中
         wx.showLoading({ title: '路线规划中...' });
 
-        // 检查API调用频率限制
-        const now = Date.now();
-        if (now - lastDirectionApiCall < API_CALL_INTERVAL) {
-            console.log('路线规划API调用过于频繁，使用直线替代');
-            this.generateFallbackRoute();
+        // 直接生成直线路径，不再调用API
+        this.generateFallbackRoute();
+
+        // 同时计算距离和预计时间
+        this.calculateDistanceAndTimes();
+    },
+
+    // 更新距离和时间计算函数
+    calculateDistanceAndTimes: function () {
+        const venue = this.data.venue;
+        const userLocation = this.data.userLocation;
+        const partnerLocation = this.data.partnerLocation;
+
+        if (!venue || !venue.location || !userLocation || !partnerLocation) {
             return;
         }
 
-        // 更新最后API调用时间
-        lastDirectionApiCall = now;
-
-        // 使用腾讯地图SDK计算路线
-        qqmapsdk.direction({
-            mode: 'walking', // 步行模式
-            from: {
-                latitude: userLocation.latitude,
-                longitude: userLocation.longitude
-            },
-            to: {
-                latitude: venue.location.lat,
-                longitude: venue.location.lng
-            },
-            success: (res) => {
-                // 隐藏加载框
-                wx.hideLoading();
-
-                if (res.result && res.result.routes && res.result.routes.length > 0) {
-                    const route = res.result.routes[0];
-
-                    // 设置路线
-                    const polyline = [{
-                        points: this.parsePolyline(route.polyline),
-                        color: '#FF6B81',
-                        width: 6,
-                        arrowLine: true
-                    }];
-
-                    // 计算步行距离和时间
-                    const distance = route.distance;
-                    const duration = route.duration;
-
-                    this.setData({
-                        polyline: polyline,
-                        distance: distance,
-                        duration: this.formatDuration(duration)
-                    });
-                } else {
-                    wx.showToast({
-                        title: '路线规划失败',
-                        icon: 'none'
-                    });
-                }
-            },
-            fail: (error) => {
-                console.error('路线规划失败', error);
-                wx.hideLoading();
-                wx.showToast({
-                    title: '无法获取路线',
-                    icon: 'none'
+        // 尝试获取更精确的距离数据
+        this.getAccurateDistances(venue, userLocation, partnerLocation)
+            .then(({ userToVenueDist, partnerToVenueDist, userToVenueTime, partnerToVenueTime }) => {
+                this.setData({
+                    distance: {
+                        userToVenue: Math.round(userToVenueDist),
+                        partnerToVenue: Math.round(partnerToVenueDist)
+                    },
+                    duration: {
+                        userToVenue: userToVenueTime,
+                        partnerToVenue: partnerToVenueTime
+                    }
                 });
-                // 使用备用方案
-                this.generateFallbackRoute();
-            }
+            })
+            .catch(() => {
+                // 如果精确获取失败，回退到近似计算
+                const userToVenueDist = venue.userDistance || venue.distance ||
+                    this.calculateDistance(
+                        userLocation.latitude, userLocation.longitude,
+                        venue.location.lat, venue.location.lng
+                    );
+
+                const partnerToVenueDist = venue.partnerDistance ||
+                    this.calculateDistance(
+                        partnerLocation.latitude, partnerLocation.longitude,
+                        venue.location.lat, venue.location.lng
+                    );
+
+                // 计算步行时间（使用更准确的步行速度：5km/h，约83米/分钟）
+                const userToVenueTime = Math.ceil(userToVenueDist / 83) * 60; // 转为秒
+                const partnerToVenueTime = Math.ceil(partnerToVenueDist / 83) * 60;
+
+                this.setData({
+                    distance: {
+                        userToVenue: Math.round(userToVenueDist),
+                        partnerToVenue: Math.round(partnerToVenueDist)
+                    },
+                    duration: {
+                        userToVenue: userToVenueTime,
+                        partnerToVenue: partnerToVenueTime
+                    }
+                });
+            });
+    },
+
+    // 新增：使用腾讯地图距离计算接口获取更精确的距离和时间
+    getAccurateDistances: function (venue, userLocation, partnerLocation) {
+        return new Promise((resolve, reject) => {
+            // 计算用户到场所的距离
+            qqmapsdk.calculateDistance({
+                mode: 'walking', // 步行模式
+                from: {
+                    latitude: userLocation.latitude,
+                    longitude: userLocation.longitude
+                },
+                to: [{
+                    latitude: venue.location.lat,
+                    longitude: venue.location.lng
+                }],
+                success: (userRes) => {
+                    if (userRes.status === 0 && userRes.result && userRes.result.elements && userRes.result.elements.length > 0) {
+                        const userElement = userRes.result.elements[0];
+                        const userToVenueDist = userElement.distance;
+                        const userToVenueTime = userElement.duration; // 以秒为单位
+
+                        // 计算伙伴到场所的距离
+                        qqmapsdk.calculateDistance({
+                            mode: 'walking', // 步行模式
+                            from: {
+                                latitude: partnerLocation.latitude,
+                                longitude: partnerLocation.longitude
+                            },
+                            to: [{
+                                latitude: venue.location.lat,
+                                longitude: venue.location.lng
+                            }],
+                            success: (partnerRes) => {
+                                if (partnerRes.status === 0 && partnerRes.result && partnerRes.result.elements && partnerRes.result.elements.length > 0) {
+                                    const partnerElement = partnerRes.result.elements[0];
+                                    const partnerToVenueDist = partnerElement.distance;
+                                    const partnerToVenueTime = partnerElement.duration; // 以秒为单位
+
+                                    resolve({
+                                        userToVenueDist,
+                                        partnerToVenueDist,
+                                        userToVenueTime,
+                                        partnerToVenueTime
+                                    });
+                                } else {
+                                    reject(new Error('获取伙伴到场所距离失败'));
+                                }
+                            },
+                            fail: (error) => {
+                                console.error('获取伙伴到场所距离失败:', error);
+                                reject(error);
+                            }
+                        });
+                    } else {
+                        reject(new Error('获取用户到场所距离失败'));
+                    }
+                },
+                fail: (error) => {
+                    console.error('获取用户到场所距离失败:', error);
+                    reject(error);
+                }
+            });
         });
     },
 

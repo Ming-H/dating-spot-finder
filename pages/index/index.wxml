@@ -55,27 +55,17 @@
   </view>
   
   <!-- 推荐场所列表 -->
-  <view class="venue-list {{showVenueList ? 'show' : ''}}">
-    <view class="venue-list-header">
-      <view class="list-title">推荐场所</view>
-      <view class="toggle-btn" bindtap="toggleVenueList">
-        <view class="toggle-icon {{showVenueList ? 'up' : 'down'}}"></view>
+  <view class="venue-list" wx:if="{{showVenueList}}">
+    <view class="section-title">推荐场所</view>
+    <view class="venue-item" wx:for="{{recommendedVenues}}" wx:key="id" bindtap="viewVenueDetail" data-index="{{index}}">
+      <view class="venue-title">{{item.title}}</view>
+      <view class="venue-address">{{item.address}}</view>
+      <view class="venue-distance-container">
+        <view class="venue-distance">您的距离: {{item.distance}}米</view>
+        <view class="venue-distance">对方距离: {{item.partnerDistance}}米</view>
       </view>
-    </view>
-    
-    <view class="venue-items">
-      <view wx:if="{{recommendedVenues.length === 0}}" class="no-venues">
-        暂无推荐场所，请选择场所类型并点击寻找约会场所
-      </view>
-      <view 
-        wx:for="{{recommendedVenues}}" 
-        wx:key="id" 
-        class="venue-item card" 
-        bindtap="viewVenueDetail"
-        data-index="{{index}}">
-        <view class="venue-title">{{item.title}}</view>
-        <view class="venue-address">{{item.address}}</view>
-        <view class="venue-distance">距离中点: {{item.distance}}米</view>
+      <view class="venue-score" wx:if="{{item.balanceScore}}">
+        平衡度: {{(item.balanceScore * 100) | Int}}%
       </view>
     </view>
   </view>

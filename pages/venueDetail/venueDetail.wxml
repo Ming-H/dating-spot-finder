@@ -56,15 +56,15 @@
     <view class="distance-item">
       <view class="distance-icon you-icon"></view>
       <view class="distance-label">您到场所:</view>
-      <view class="distance-value">{{distance.userToVenue}}米</view>
-      <view class="duration-value">约{{duration.userToVenue / 60 | Int}}分钟</view>
+      <view class="distance-value">{{distance.userToVenue || '-'}}米</view>
+      <view class="duration-value">约{{duration.userToVenue ? (duration.userToVenue/60|0) : '-'}}分钟</view>
     </view>
     
     <view class="distance-item">
       <view class="distance-icon partner-icon"></view>
       <view class="distance-label">对方到场所:</view>
-      <view class="distance-value">{{distance.partnerToVenue}}米</view>
-      <view class="duration-value">约{{duration.partnerToVenue / 60 | Int}}分钟</view>
+      <view class="distance-value">{{distance.partnerToVenue || '-'}}米</view>
+      <view class="duration-value">约{{duration.partnerToVenue ? (duration.partnerToVenue/60|0) : '-'}}分钟</view>
     </view>
   </view>
   
