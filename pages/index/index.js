@@ -1267,145 +1267,159 @@ Page({
 
     // 修改搜索场所的方法，提高位置精确度
     searchVenuesAtMidPoint: function (midPoint) {
-        if (!midPoint) {
-            return Promise.reject('没有有效的中间点');
-        }
-
-        // 根据场所类型设置更精确的关键词
-        const typeKeywords = {
-            'restaurant': '餐厅 餐馆 饭店',
-            'cafe': '咖啡馆 咖啡厅',
-            'movie': '电影院 影城',
-            'park': '公园',
-            'shopping': '商场 购物中心',
-            'bar': '酒吧 酒馆'
-        };
-
-        const venueType = this.data.selectedVenueType;
-        const keyword = typeKeywords[venueType] || venueType;
-
-        // 显示搜索中状态
-        wx.showLoading({
-            title: '搜索中...',
-            mask: true
-        });
-
-        // 设置合理的搜索半径，以获取足够的结果
-        const searchRadius = 8000; // 8公里，可根据需要调整
-
         return new Promise((resolve, reject) => {
-            // 检查API调用频率
-            const now = Date.now();
-            if (now - apiCallTimestamp < API_CALL_INTERVAL) {
-                console.log('API调用太频繁，等待冷却时间');
-                wx.showToast({
-                    title: 'API调用频繁，请稍后再试',
-                    icon: 'none'
-                });
-                setTimeout(() => {
-                    // 递归重试，延迟执行
-                    this.searchVenuesAtMidPoint(midPoint)
-                        .then(resolve)
-                        .catch(reject);
-                }, API_CALL_INTERVAL - (now - apiCallTimestamp));
+            if (!midPoint) {
+                reject('没有有效的中间点');
                 return;
             }
 
-            apiCallTimestamp = now;
+            const venueType = this.data.selectedVenueType;
 
-            // 使用腾讯地图POI搜索
-            qqmapsdk.search({
-                keyword: keyword,
-                location: {
-                    latitude: midPoint.latitude,
-                    longitude: midPoint.longitude
+            // 更新搜索配置
+            const searchConfig = {
+                'restaurant': {
+                    keywords: '餐厅',
+                    filter: 'category=餐饮服务',
+                    radius: 3000
                 },
-                page_size: 20, // 每页结果数
-                page_index: 1, // 搜索结果页码
-                radius: searchRadius,
-                auto_extend: 1, // 自动扩大搜索范围
-                filter: venueType === 'park' ? 'category=公园' :
-                    venueType === 'restaurant' ? 'category=餐饮' :
-                        venueType === 'shopping' ? 'category=购物' :
-                            venueType === 'movie' ? 'category=休闲娱乐' : '',
-                success: (res) => {
-                    wx.hideLoading();
+                'cafe': {
+                    keywords: '咖啡厅',
+                    filter: 'category=咖啡厅',
+                    radius: 3000
+                },
+                'movie': {
+                    keywords: '电影院',
+                    filter: 'category=电影院',
+                    radius: 5000
+                },
+                'park': {
+                    keywords: '公园',
+                    filter: 'category=公园',
+                    radius: 5000
+                },
+                'shopping': {
+                    keywords: '购物中心',
+                    filter: 'category=购物',
+                    radius: 3000
+                },
+                'bar': {
+                    keywords: '酒吧',
+                    filter: 'category=酒吧',
+                    radius: 3000
+                }
+            }[venueType] || { keywords: venueType, filter: '', radius: 3000 };
 
-                    if (res && res.data && res.data.length > 0) {
-                        console.log('腾讯地图搜索结果:', res.data);
+            // 执行多区域搜索
+            const searchPoints = this.getSearchPoints(midPoint);
 
-                        // 确保搜索结果格式正确，处理位置信息
-                        const formattedVenues = this.formatSearchResults(res.data, venueType);
+            Promise.all(searchPoints.map(point =>
+                this.searchAtPoint(point.location, searchConfig, point.weight)
+            ))
+                .then(results => {
+                    // 合并所有搜索结果
+                    let allVenues = [];
+                    results.forEach(result => {
+                        if (result && result.length) {
+                            allVenues = [...allVenues, ...result];
+                        }
+                    });
 
-                        // 获取前5个结果的详细信息，以确保准确位置
-                        this.fetchDetailedLocationInfo(formattedVenues.slice(0, Math.min(5, formattedVenues.length)))
-                            .then(venuesWithDetail => {
-                                // 对结果进行评分并排序
-                                const scoredVenues = this.scoreVenuesByBalance(venuesWithDetail);
-                                const sortedVenues = scoredVenues.sort((a, b) => b.balanceScore - a.balanceScore);
+                    // 去重并过滤
+                    const uniqueVenues = this.deduplicateVenues(allVenues);
 
-                                resolve(sortedVenues);
-                            })
-                            .catch(error => {
-                                console.error('获取详细位置信息失败:', error);
-                                // 即使获取详细信息失败，也返回基本的搜索结果
-                                const scoredVenues = this.scoreVenuesByBalance(formattedVenues);
-                                resolve(scoredVenues.sort((a, b) => b.balanceScore - a.balanceScore));
-                            });
+                    if (uniqueVenues.length > 0) {
+                        return this.fetchDetailedLocationInfo(uniqueVenues);
                     } else {
-                        console.log('未找到匹配场所');
+                        // 如果没有找到结果，扩大搜索范围
+                        return this.extendedSearch(midPoint, {
+                            ...searchConfig,
+                            radius: searchConfig.radius * 2
+                        });
+                    }
+                })
+                .then(venues => {
+                    resolve(venues);
+                })
+                .catch(error => {
+                    console.error('搜索过程出错:', error);
+                    reject(error);
+                });
+        });
+    },
+
+    // 新增：获取多个搜索点
+    getSearchPoints: function (midPoint) {
+        const userLoc = this.data.userLocation;
+        const partnerLoc = this.data.partnerLocation;
+
+        return [
+            {
+                location: midPoint,
+                weight: 1.0
+            },
+            {
+                location: {
+                    latitude: (userLoc.latitude * 2 + partnerLoc.latitude) / 3,
+                    longitude: (userLoc.longitude * 2 + partnerLoc.longitude) / 3
+                },
+                weight: 0.8
+            },
+            {
+                location: {
+                    latitude: (userLoc.latitude + partnerLoc.latitude * 2) / 3,
+                    longitude: (userLoc.longitude + partnerLoc.longitude * 2) / 3
+                },
+                weight: 0.8
+            }
+        ];
+    },
+
+    // 修改：单点搜索函数
+    searchAtPoint: function (location, config, weight = 1.0) {
+        return new Promise((resolve) => {
+            qqmapsdk.search({
+                keyword: config.keywords,
+                location: `${location.latitude},${location.longitude}`,
+                page_size: 20,
+                radius: config.radius,
+                filter: config.filter,
+                success: (res) => {
+                    if (res && res.data && res.data.length > 0) {
+                        const venues = res.data
+                            .filter(item =>
+                                item.location &&
+                                this.isValidLocation(item.location.lat, item.location.lng)
+                            )
+                            .map(item => ({
+                                ...this.formatVenue(item),
+                                searchWeight: weight
+                            }));
+                        resolve(venues);
+                    } else {
                         resolve([]);
                     }
                 },
-                fail: (error) => {
-                    wx.hideLoading();
-                    console.error('场所搜索失败:', error);
-
-                    // 如果是API密钥问题，尝试切换备用密钥
-                    if (error.status === 348 || error.status === 121) {
-                        if (currentKeyIndex < BACKUP_KEYS.length - 1) {
-                            currentKeyIndex++;
-                            qqmapsdk = initQQMapSDK();
-                            console.log('切换到备用密钥，索引:', currentKeyIndex);
-
-                            setTimeout(() => {
-                                this.searchVenuesAtMidPoint(midPoint)
-                                    .then(resolve)
-                                    .catch(reject);
-                            }, 500);
-                            return;
-                        }
-                    }
-
-                    reject(error);
-                }
+                fail: () => resolve([])
             });
         });
     },
 
-    // 新增: 格式化搜索结果为统一格式
-    formatSearchResults: function (results, venueType) {
-        return results.map((item, index) => {
-            return {
-                id: 'venue_' + index,
-                title: item.title,
-                address: item.address || '',
-                category: item.category || venueType,
-                type: venueType,
-                tel: item.tel || '',
-                location: {
-                    lat: item.location ? item.location.lat : 0,
-                    lng: item.location ? item.location.lng : 0
-                },
-                // 存储原始数据，以便后续处理
-                rawData: item,
-                // 标记为API搜索结果
-                fromSearch: true
-            };
-        }).filter(venue =>
-            // 过滤掉无效的位置信息
-            venue.location && venue.location.lat && venue.location.lng
-        );
+    // 新增：格式化场所数据
+    formatVenue: function (item) {
+        return {
+            id: item.id,
+            title: item.title,
+            address: item.address,
+            location: {
+                lat: item.location.lat,
+                lng: item.location.lng
+            },
+            category: item.category,
+            type: this.data.selectedVenueType,
+            tel: item.tel || '',
+            photos: item.photos || [],
+            rawData: item
+        };
     },
 
     // 新增: 获取场所的详细位置信息

@@ -8,8 +8,32 @@ App({
     },
 
     onLaunch() {
-        // 修复文件系统错误相关问题
+        // 更全面的错误处理
         this.fixNodeJsErrors();
+        this.handleGlobalErrors();
+
+        // 初始化模拟文件系统
+        if (typeof global !== 'undefined') {
+            global.fs = {
+                accessSync: () => true,
+                readFileSync: () => Buffer.from('{}'),
+                writeFileSync: () => { },
+                existsSync: () => true,
+                mkdirSync: () => { },
+                readdirSync: () => [],
+                statSync: () => ({
+                    isDirectory: () => false,
+                    isFile: () => true
+                })
+            };
+
+            // 模拟 Buffer
+            if (typeof global.Buffer === 'undefined') {
+                global.Buffer = {
+                    from: (str) => ({ toString: () => str })
+                };
+            }
+        }
 
         // 获取用户位置
         wx.getLocation({
