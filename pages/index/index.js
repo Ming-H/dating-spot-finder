@@ -552,338 +552,254 @@ Page({
 
         this.setData({ loading: true });
 
-        try {
-            // 计算中点和搜索范围
-            const midPoint = this.calculateDirectMidPoint();
-
-            // 使用多点搜索策略
-            this.multiPointSearch(midPoint)
-                .then(venues => {
-                    wx.hideLoading();
-
-                    if (venues && venues.length > 0) {
-                        // 获取详细信息并验证位置准确性
-                        return this.fetchDetailedLocationInfo(venues);
-                    } else {
-                        // 如果没有找到结果，扩大搜索范围
-                        console.log('未找到匹配场所，扩大搜索范围');
-                        return this.extendedSearch(midPoint);
-                    }
-                })
-                .then(venues => {
-                    if (venues && venues.length > 0) {
-                        this.processSearchResults(venues);
-                    } else {
-                        wx.showToast({
-                            title: '未找到合适场所',
-                            icon: 'none'
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('场所搜索出错:', error);
-                    wx.showToast({
-                        title: '搜索失败，请重试',
-                        icon: 'none'
-                    });
-                })
-                .finally(() => {
-                    this.setData({ loading: false });
-                });
-        } catch (error) {
-            console.error('搜索过程出错:', error);
+        const midPoint = this.calculateDirectMidPoint();
+        if (!midPoint) {
             wx.hideLoading();
-            this.setData({ loading: false });
             wx.showToast({
-                title: '搜索出错，请重试',
-                icon: 'none'
-            });
-        }
-    },
-
-    // 新增: 多点搜索策略，同时搜索几个关键区域
-    multiPointSearch: function (midPoint) {
-        // 获取用户和伙伴位置
-        const userLoc = this.data.userLocation;
-        const partnerLoc = this.data.partnerLocation;
-
-        // 定义搜索点：中点和两条路径上的点
-        const searchPoints = [
-            {
-                lat: midPoint.latitude,
-                lng: midPoint.longitude,
-                weight: 1.0 // 中点权重最高
-            },
-            {
-                lat: userLoc.latitude * 0.7 + partnerLoc.latitude * 0.3,
-                lng: userLoc.longitude * 0.7 + partnerLoc.longitude * 0.3,
-                weight: 0.7 // 靠近用户侧的点
-            },
-            {
-                lat: userLoc.latitude * 0.3 + partnerLoc.latitude * 0.7,
-                lng: userLoc.longitude * 0.3 + partnerLoc.longitude * 0.7,
-                weight: 0.7 // 靠近伙伴侧的点
-            }
-        ];
-
-        // 对所有点进行搜索，合并结果
-        return Promise.all(searchPoints.map(point =>
-            this.searchAtPoint(point.lat, point.lng, point.weight)
-        )).then(results => {
-            // 合并所有搜索结果
-            let allVenues = [];
-            results.forEach(result => {
-                if (result && result.length) {
-                    allVenues = [...allVenues, ...result];
-                }
-            });
-
-            // 去重
-            const uniqueVenues = this.deduplicateVenues(allVenues);
-
-            // 评分和排序
-            const scoredVenues = this.scoreVenuesByBalance(uniqueVenues);
-            return scoredVenues
-                .sort((a, b) => b.balanceScore - a.balanceScore)
-                .slice(0, 5); // 返回前5个结果
-        });
-    },
-
-    // 新增: 在单个点搜索场所
-    searchAtPoint: function (lat, lng, weightFactor = 1.0) {
-        const venueType = this.data.selectedVenueType;
-
-        // 更精确的关键词和分类映射
-        const typeKeywords = {
-            'restaurant': {
-                keywords: '餐厅 餐馆 饭店',
-                filter: 'category=餐饮服务'
-            },
-            'cafe': {
-                keywords: '咖啡馆 咖啡厅',
-                filter: 'category=咖啡厅'
-            },
-            'movie': {
-                keywords: '电影院 影城',
-                filter: 'category=电影院'
-            },
-            'park': {
-                keywords: '公园',
-                filter: 'category=公园'
-            },
-            'shopping': {
-                keywords: '商场 购物中心',
-                filter: 'category=购物'
-            },
-            'bar': {
-                keywords: '酒吧',
-                filter: 'category=酒吧'
-            }
-        };
-
-        const searchConfig = typeKeywords[venueType] || { keywords: venueType, filter: '' };
-
-        return new Promise((resolve) => {
-            qqmapsdk.search({
-                keyword: searchConfig.keywords,
-                location: {
-                    latitude: lat,
-                    longitude: lng
-                },
-                page_size: 20,
-                radius: 5000, // 5公里范围
-                filter: searchConfig.filter, // 添加分类过滤
-                success: (res) => {
-                    if (res && res.data && res.data.length > 0) {
-                        // 格式化结果并添加权重因子
-                        const venues = this.formatSearchResults(res.data, venueType)
-                            .map(venue => ({
-                                ...venue,
-                                searchWeightFactor: weightFactor
-                            }));
-                        resolve(venues);
-                    } else {
-                        resolve([]);
-                    }
-                },
-                fail: () => {
-                    resolve([]);
-                }
-            });
-        });
-    },
-
-    // 新增: 扩大搜索范围的函数
-    extendedSearch: function (midPoint) {
-        const venueType = this.data.selectedVenueType;
-
-        return new Promise((resolve) => {
-            qqmapsdk.search({
-                keyword: venueType, // 直接使用场所类型作为关键词
-                location: {
-                    latitude: midPoint.latitude,
-                    longitude: midPoint.longitude
-                },
-                page_size: 20,
-                radius: 10000, // 扩大到10公里
-                success: (res) => {
-                    if (res && res.data && res.data.length > 0) {
-                        const venues = this.formatSearchResults(res.data, venueType);
-                        const scoredVenues = this.scoreVenuesByBalance(venues);
-                        resolve(scoredVenues.sort((a, b) => b.balanceScore - a.balanceScore).slice(0, 5));
-                    } else {
-                        resolve([]);
-                    }
-                },
-                fail: () => {
-                    resolve([]);
-                }
-            });
-        });
-    },
-
-    // 场所去重函数优化
-    deduplicateVenues: function (venues) {
-        const uniqueMap = new Map();
-
-        venues.forEach(venue => {
-            // 使用位置和名称组合作为键
-            const key = `${venue.title}_${venue.location.lat.toFixed(5)}_${venue.location.lng.toFixed(5)}`;
-
-            if (!uniqueMap.has(key) || venue.searchWeightFactor > uniqueMap.get(key).searchWeightFactor) {
-                uniqueMap.set(key, venue);
-            }
-        });
-
-        return Array.from(uniqueMap.values());
-    },
-
-    // 根据平衡性评分场所
-    scoreVenuesByBalance: function (venues) {
-        const userLocation = this.data.userLocation;
-        const partnerLocation = this.data.partnerLocation;
-
-        if (!userLocation || !partnerLocation || !venues || venues.length === 0) {
-            return venues;
-        }
-
-        // 计算中点位置用于评估居中性
-        const centerLat = (userLocation.latitude + partnerLocation.latitude) / 2;
-        const centerLng = (userLocation.longitude + partnerLocation.longitude) / 2;
-
-        return venues.map(venue => {
-            // 计算距离
-            const userDist = this.calculateDistance(
-                userLocation.latitude, userLocation.longitude,
-                venue.location.lat, venue.location.lng
-            );
-
-            const partnerDist = this.calculateDistance(
-                partnerLocation.latitude, partnerLocation.longitude,
-                venue.location.lat, venue.location.lng
-            );
-
-            const centerDist = this.calculateDistance(
-                centerLat, centerLng,
-                venue.location.lat, venue.location.lng
-            );
-
-            // 平衡性评分
-            const ratio = userDist > partnerDist ?
-                partnerDist / userDist :
-                userDist / partnerDist;
-
-            // 总距离评分 (越短越好)
-            const totalDist = userDist + partnerDist;
-            const distanceScore = Math.max(0, 1 - totalDist / 20000);
-
-            // 居中性评分 (越居中越好)
-            const centerScore = Math.max(0, 1 - centerDist / 5000);
-
-            // 根据场所类型调整权重
-            let balanceWeight = 0.5;
-            let distanceWeight = 0.3;
-            let centerWeight = 0.2;
-
-            const venueType = this.data.selectedVenueType;
-
-            // 不同类型场所的评分权重调整
-            switch (venueType) {
-                case 'restaurant':
-                case 'cafe':
-                    // 餐厅和咖啡厅更重视平衡性
-                    balanceWeight = 0.6;
-                    distanceWeight = 0.3;
-                    centerWeight = 0.1;
-                    break;
-                case 'movie':
-                case 'shopping':
-                    // 电影院和购物中心更重视总距离
-                    balanceWeight = 0.4;
-                    distanceWeight = 0.5;
-                    centerWeight = 0.1;
-                    break;
-                case 'park':
-                    // 公园权重保持默认
-                    break;
-                case 'bar':
-                    // 酒吧更重视平衡性和总距离
-                    balanceWeight = 0.5;
-                    distanceWeight = 0.4;
-                    centerWeight = 0.1;
-                    break;
-            }
-
-            // 计算最终得分
-            const finalScore =
-                (ratio * balanceWeight) +
-                (distanceScore * distanceWeight) +
-                (centerScore * centerWeight);
-
-            // 如果有详细信息，给予额外加分
-            const detailBonus = venue.hasDetailedInfo ? 1.1 : 1;
-
-            return {
-                ...venue,
-                userDistance: Math.round(userDist),
-                partnerDistance: Math.round(partnerDist),
-                centerDistance: Math.round(centerDist),
-                totalDistance: Math.round(totalDist),
-                balanceRatio: parseFloat(ratio.toFixed(2)),
-                balanceScore: finalScore * detailBonus
-            };
-        });
-    },
-
-    // 添加缺失的处理搜索结果的函数
-    processSearchResults: function (venues) {
-        if (!venues || venues.length === 0) {
-            wx.showToast({
-                title: '未找到符合的场所',
+                title: '计算中点失败',
                 icon: 'none'
             });
             return;
         }
 
-        // 存储到全局数据
-        app.globalData.recommendedVenues = venues;
+        const searchRadius = this.calculateSearchRadius(
+            this.data.userLocation,
+            this.data.partnerLocation
+        );
 
-        // 更新页面数据
-        this.setData({
-            recommendedVenues: venues,
-            showVenueList: true
+        this.improvedVenueSearch(midPoint, searchRadius)
+            .then(venues => {
+                wx.hideLoading();
+                if (venues && venues.length > 0) {
+                    this.processSearchResults(venues);
+                } else {
+                    // 如果第一次搜索失败，尝试扩大范围
+                    return this.extendedSearch(midPoint, searchRadius * 1.5);
+                }
+            })
+            .catch(error => {
+                console.error('场所搜索出错:', error);
+                wx.hideLoading();
+                wx.showToast({
+                    title: '搜索失败，请重试',
+                    icon: 'none',
+                    duration: 2000
+                });
+            })
+            .finally(() => {
+                this.setData({ loading: false });
+            });
+    },
+
+    // 新增：计算合适的搜索半径
+    calculateSearchRadius: function (userLoc, partnerLoc) {
+        // 计算两点之间的距离
+        const distance = this.calculateDistance(
+            userLoc.latitude,
+            userLoc.longitude,
+            partnerLoc.latitude,
+            partnerLoc.longitude
+        );
+
+        // 基础搜索半径为两点距离的一半，但不小于1000米，不大于5000米
+        let radius = Math.max(1000, Math.min(5000, distance / 2));
+
+        // 根据场所类型调整搜索半径
+        const typeRadiusAdjustment = {
+            'restaurant': 0.8,  // 餐厅搜索范围可以小一些
+            'cafe': 0.8,       // 咖啡厅搜索范围小一些
+            'movie': 1.2,      // 电影院可以远一些
+            'park': 1.2,       // 公园可以远一些
+            'shopping': 1.0,   // 购物中心标准范围
+            'bar': 0.9         // 酒吧范围适中
+        };
+
+        radius *= (typeRadiusAdjustment[this.data.selectedVenueType] || 1.0);
+
+        return Math.round(radius);
+    },
+
+    // 改进的场所搜索方法
+    improvedVenueSearch: function (midPoint, radius) {
+        return new Promise((resolve, reject) => {
+            // 检查并格式化位置参数
+            if (!midPoint || !midPoint.latitude || !midPoint.longitude) {
+                console.error('无效的位置参数:', midPoint);
+                reject(new Error('无效的位置参数'));
+                return;
+            }
+
+            // 确保经纬度是数字类型
+            const lat = parseFloat(midPoint.latitude);
+            const lng = parseFloat(midPoint.longitude);
+
+            // 验证经纬度范围
+            if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                console.error('经纬度超出范围:', lat, lng);
+                reject(new Error('经纬度超出范围'));
+                return;
+            }
+
+            // 构建搜索配置
+            const searchConfig = {
+                keyword: this.getSearchKeywords(),
+                location: {
+                    latitude: lat,
+                    longitude: lng
+                },
+                page_size: 20,
+                radius: Math.min(radius, 50000), // 确保半径不超过50km
+                filter: this.getVenueFilter(),
+                success: (res) => {
+                    if (res && res.data) {
+                        console.log('搜索结果:', res.data);
+                        const processedVenues = this.processVenueResults(res.data);
+                        resolve(processedVenues);
+                    } else {
+                        console.log('未找到结果');
+                        resolve([]);
+                    }
+                },
+                fail: (error) => {
+                    console.error('搜索失败:', error);
+                    // 尝试使用备用密钥
+                    this.handleSearchFailure(error)
+                        .then(resolve)
+                        .catch(reject);
+                },
+                complete: () => {
+                    console.log('搜索完成');
+                }
+            };
+
+            try {
+                console.log('发起搜索请求:', searchConfig);
+                qqmapsdk.search(searchConfig);
+            } catch (error) {
+                console.error('搜索请求异常:', error);
+                reject(error);
+            }
         });
+    },
 
-        // 更新地图标记
-        this.updateMarkers();
+    // 新增：处理搜索失败的方法
+    handleSearchFailure: function (error) {
+        return new Promise((resolve, reject) => {
+            // 如果是密钥相关错误，尝试切换到备用密钥
+            if (error.status === 348 || error.code === 348) {
+                console.log('尝试切换到备用密钥');
+                currentKeyIndex = (currentKeyIndex + 1) % (BACKUP_KEYS.length + 1);
+                qqmapsdk = initQQMapSDK(); // 重新初始化SDK
 
-        // 调整地图视野
-        this.adjustMapView();
-
-        wx.showToast({
-            title: '已找到合适场所',
-            icon: 'success'
+                // 延迟500ms后重试
+                setTimeout(() => {
+                    this.improvedVenueSearch(this.calculateDirectMidPoint(), this.calculateSearchRadius(
+                        this.data.userLocation,
+                        this.data.partnerLocation
+                    ))
+                        .then(resolve)
+                        .catch(reject);
+                }, 500);
+            } else {
+                reject(error);
+            }
         });
+    },
+
+    // 获取搜索关键词
+    getSearchKeywords: function () {
+        const keywordMap = {
+            'restaurant': '餐厅',
+            'cafe': '咖啡厅',
+            'movie': '电影院',
+            'park': '公园',
+            'shopping': '购物中心',
+            'bar': '酒吧'
+        };
+        // 确保返回简单的关键词
+        return keywordMap[this.data.selectedVenueType] || '';
+    },
+
+    // 获取场所过滤条件
+    getVenueFilter: function () {
+        // 简化过滤条件
+        return '';  // 暂时移除过滤条件，以提高搜索成功率
+    },
+
+    // 处理场所搜索结果
+    processVenueResults: function (venues) {
+        return venues
+            .filter(venue =>
+                venue.location &&
+                this.isValidLocation(venue.location.lat, venue.location.lng) &&
+                this.isWithinReasonableDistance(venue.location)
+            )
+            .map(venue => ({
+                id: venue.id,
+                title: venue.title,
+                address: venue.address,
+                location: {
+                    lat: venue.location.lat,
+                    lng: venue.location.lng
+                },
+                category: venue.category,
+                type: this.data.selectedVenueType,
+                distance: {
+                    user: this.calculateDistance(
+                        this.data.userLocation.latitude,
+                        this.data.userLocation.longitude,
+                        venue.location.lat,
+                        venue.location.lng
+                    ),
+                    partner: this.calculateDistance(
+                        this.data.partnerLocation.latitude,
+                        this.data.partnerLocation.longitude,
+                        venue.location.lat,
+                        venue.location.lng
+                    )
+                }
+            }))
+            .sort((a, b) => {
+                // 计算综合评分（距离平衡性）
+                const scoreA = this.calculateVenueScore(a);
+                const scoreB = this.calculateVenueScore(b);
+                return scoreB - scoreA;
+            })
+            .slice(0, 10);  // 只返回最佳的10个结果
+    },
+
+    // 检查位置是否在合理距离内
+    isWithinReasonableDistance: function (location) {
+        const maxDistance = 10000; // 10公里
+        const userDist = this.calculateDistance(
+            this.data.userLocation.latitude,
+            this.data.userLocation.longitude,
+            location.lat,
+            location.lng
+        );
+        const partnerDist = this.calculateDistance(
+            this.data.partnerLocation.latitude,
+            this.data.partnerLocation.longitude,
+            location.lat,
+            location.lng
+        );
+        return userDist <= maxDistance && partnerDist <= maxDistance;
+    },
+
+    // 计算场所评分
+    calculateVenueScore: function (venue) {
+        const distanceBalance = Math.min(venue.distance.user, venue.distance.partner) /
+            Math.max(venue.distance.user, venue.distance.partner);
+        const totalDistance = venue.distance.user + venue.distance.partner;
+
+        // 评分权重
+        const balanceWeight = 0.6;
+        const distanceWeight = 0.4;
+
+        // 距离评分（越近越好）
+        const distanceScore = 1 - (totalDistance / 20000); // 20km作为最大参考距离
+
+        return (distanceBalance * balanceWeight) + (distanceScore * distanceWeight);
     },
 
     // 简化路线规划函数
@@ -1254,14 +1170,17 @@ Page({
 
     // 计算两点之间的直线中点 (简化版)
     calculateDirectMidPoint: function () {
-        const centerLat = (this.data.userLocation.latitude + this.data.partnerLocation.latitude) / 2;
-        const centerLng = (this.data.userLocation.longitude + this.data.partnerLocation.longitude) / 2;
+        const userLoc = this.data.userLocation;
+        const partnerLoc = this.data.partnerLocation;
+
+        if (!userLoc || !partnerLoc) {
+            console.error('无法计算中点：缺少位置信息');
+            return null;
+        }
 
         return {
-            latitude: centerLat,
-            longitude: centerLng,
-            name: '中间点',
-            type: 'midpoint'
+            latitude: (userLoc.latitude + partnerLoc.latitude) / 2,
+            longitude: (userLoc.longitude + partnerLoc.longitude) / 2
         };
     },
 
@@ -1392,7 +1311,7 @@ Page({
                             )
                             .map(item => ({
                                 ...this.formatVenue(item),
-                                searchWeight: weight
+                                searchWeightFactor: weight
                             }));
                         resolve(venues);
                     } else {
